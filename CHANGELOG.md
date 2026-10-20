@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- Remote embedding, reranking, and query expansion via OpenAI-compatible API
+  (vLLM, Ollama, OpenAI, etc.). Each operation is configured independently with
+  `QMD_EMBED_API_*`, `QMD_RERANK_API_*`, and `QMD_EXPAND_API_*` env vars or the
+  equivalent keys under `models:` in `index.yml`; unconfigured operations stay
+  local, so reranking can be offloaded without re-embedding an existing index.
+  Local generation and tokenization are preserved via a hybrid routing layer.
+  Includes circuit breakers, dimension validation, and batch splitting.
+
 ### Fixed
 
 - `qmd doctor` selects vector sample identities before loading document bodies,

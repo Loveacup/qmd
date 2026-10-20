@@ -1582,6 +1582,55 @@ Uses node-llama-cpp's `createRankingContext()` and `rankAndSort()` API for cross
 
 Used for generating query variations via `LlamaChatSession`.
 
+### Remote Embedding, Reranking & Query Expansion
+
+QMD can offload embedding, reranking, and query expansion to remote OpenAI-compatible servers (vLLM, Ollama, LM Studio, OpenAI, etc.) while keeping local generation and tokenization available for hybrid fallback.
+
+**Environment variables.** Each operation is opt-in on its own: set a URL and model for embed, rerank, and/or expand. Unset operations stay local, so you can offload only reranking and keep an existing local-embedding index without re-embedding. Setting only one of an operation's URL/model is an error.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `QMD_EMBED_API_URL` | With `QMD_EMBED_API_MODEL` | Base URL, e.g. `http://gpu-host:8000/v1`. Switching embeddings requires `qmd embed -f` |
+| `QMD_EMBED_API_MODEL` | With `QMD_EMBED_API_URL` | Model name, e.g. `BAAI/bge-m3` |
+| `QMD_EMBED_API_KEY` | No | Bearer token for auth |
+| `QMD_RERANK_API_URL` | With `QMD_RERANK_API_MODEL` (unless embed URL is set) | Rerank endpoint (defaults to embed URL) |
+| `QMD_RERANK_API_MODEL` | No | Rerank model name |
+| `QMD_RERANK_API_KEY` | No | Rerank auth (defaults to embed key) |
+| `QMD_EXPAND_API_URL` | With `QMD_EXPAND_API_MODEL` (unless embed URL is set) | Query expansion chat endpoint (defaults to embed URL) |
+| `QMD_EXPAND_API_MODEL` | No | Chat model for query expansion |
+| `QMD_EXPAND_API_KEY` | No | Query expansion auth (defaults to embed key) |
+
+Remote rerank failures fall back to the local reranker for that query.
+
+**YAML config** (`~/.config/qmd/index.yml`):
+```yaml
+models:
+  embed_api_url: "http://gpu-host:8000/v1"
+  embed_api_model: "BAAI/bge-m3"
+  rerank_api_model: "BAAI/bge-reranker-v2-m3"
+  expand_api_url: "https://chat-host/v1"
+  expand_api_model: "qwen3-4b"
+```
+
+Rerank-only (local embeddings untouched):
+```yaml
+models:
+  rerank_api_url: "http://gpu-host:8088/v1"
+  rerank_api_model: "bge-reranker-v2-m3"
+```
+
+**Example with vLLM:**
+```sh
+# Start vLLM with an embedding model
+vllm serve BAAI/bge-m3 --task embed
+
+# Point QMD at it
+export QMD_EMBED_API_URL=http://localhost:8000/v1
+export QMD_EMBED_API_MODEL=BAAI/bge-m3
+qmd embed
+qmd query "your search query"
+```
+
 ## License
 
 MIT
