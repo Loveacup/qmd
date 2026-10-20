@@ -4372,6 +4372,10 @@ export function renameCollection(db: Database, oldName: string, newName: string)
     }
 
     db.prepare(`UPDATE documents SET collection = ? WHERE collection = ?`).run(newName, oldName);
+    // The documents_au trigger just rewrote these FTS rows with raw text;
+    // CJK search needs the TypeScript-normalized form, so rebuild them.
+    const renamedIds = db.prepare(`SELECT id FROM documents WHERE collection = ? AND active = 1`).all(newName) as { id: number }[];
+    for (const { id } of renamedIds) rebuildDocumentFTS(db, id);
     // The documents keep their ids and paths, so their sync rows stay valid
     // under the new name. Rows already under it belong to no collection.
     db.prepare(`DELETE FROM file_sync_state WHERE collection = ?`).run(newName);

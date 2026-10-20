@@ -3693,6 +3693,23 @@ describe("Reindex Collection file sync state (#962)", () => {
     }
   });
 
+  test("renaming a collection keeps CJK keyword search working", async () => {
+    const store = await createTestStore();
+    const dir = await collectionDir("rename-cjk-fts");
+    try {
+      await writeFile(join(dir, "plan.md"), "# 计划\n\n本季度的项目管理重点是风险控制。\n");
+      await reindexCollection(store, dir, "**/*.md", "notes");
+      expect(store.searchFTS("项目管理", 5, "notes").map(r => r.displayPath)).toEqual(["notes/plan.md"]);
+
+      renameCollection(store.db, "notes", "vault");
+
+      expect(store.searchFTS("项目管理", 5, "vault").map(r => r.displayPath)).toEqual(["vault/plan.md"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await cleanupTestDb(store);
+    }
+  });
+
   test("renaming a collection and adding the old name at another path indexes both", async () => {
     const store = await createTestStore();
     const first = await collectionDir("sync-rename-first");
